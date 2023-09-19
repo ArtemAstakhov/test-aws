@@ -93,14 +93,3 @@ export const handler: Handler<APIGatewayEvent> = async (event) => {
     }),
   };
 };
-
-handler(
-  {
-    queryStringParameters: {
-      cur: "USD,EUR",
-      targetCur: "USD",
-    },
-  } as unknown as APIGatewayEvent,
-  {} as Context,
-  () => {}
-);
