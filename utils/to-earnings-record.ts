@@ -1,8 +1,9 @@
 import { EarningRecord, EarningRecordHeader } from "../models/earning-record";
 
-const CURRENCY_COLUMN_NAME = "currency";
-const REPORT_DATE_COLUMN_NAME = "reportDate";
-const EPS_COLUMN_NAME = "estimate";
+const CURRENCY_COLUMN_NAME = process.env.CURRENCY_COLUMN_NAME || "currency";
+const REPORT_DATE_COLUMN_NAME =
+  process.env.REPORT_DATE_COLUMN_NAME || "reportDate";
+const EPS_COLUMN_NAME = process.env.EPS_COLUMN_NAME || "estimate";
 
 export const toEarningsRecord = (
   row: Array<string>,

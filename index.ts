@@ -9,7 +9,7 @@ import {
 } from "./utils/to-earnings-record";
 import api from "./api";
 
-const EXCLUDE_EMPTY = true;
+const EXCLUDE_EMPTY = process.env.EXCLUDE_EMPTY === "true";
 
 export const handler: Handler<APIGatewayEvent> = async (event) => {
   const currencies = event.queryStringParameters?.cur?.split(",") || [];
@@ -31,16 +31,19 @@ export const handler: Handler<APIGatewayEvent> = async (event) => {
     .toArray();
 
   const header = toEarningsRecordHeader(earningsData[0]);
-  const earnings = (earningsData.slice(1) as Array<Array<string>>).map((row) =>
-    toEarningsRecord(row, header)
-  );
+
+  const earnings = earningsData
+    .slice(1)
+    .map((row) => toEarningsRecord(row, header));
 
   const currencyRates = await Promise.all(
-    currencies.map(async (currency) => {
-      const rate = await api.getCurrencyRate(currency, targetCurrency);
+    currencies
+      .filter((currency) => currency !== targetCurrency)
+      .map(async (currency) => {
+        const rate = await api.getCurrencyRate(currency, targetCurrency);
 
-      return { currency, rate };
-    })
+        return { currency, rate };
+      })
   );
 
   const currencyRatesMap = currencyRates.reduce(

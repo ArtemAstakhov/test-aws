@@ -1,8 +1,8 @@
 import axios from "axios";
 import { Readable } from "stream";
 
-const ALPHAVANTAGE_API_KEY = "G2JKGR3AXYX92G5E";
-const HORIZON = "3month";
+const ALPHAVANTAGE_API_KEY = process.env.ALPHAVANTAGE_API_KEY;
+const HORIZON = process.env.HORIZON || "3month";
 
 export default {
   getCurrencyRate: (
