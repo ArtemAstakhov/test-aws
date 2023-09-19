@@ -1,5 +1,6 @@
 import { StringStream } from "scramjet";
-import { Context, Handler, APIGatewayEvent } from "aws-lambda";
+import { Handler, APIGatewayEvent } from "aws-lambda";
+import { Logger } from "@aws-lambda-powertools/logger";
 
 import { getNextMonth } from "./utils/get-next-month";
 import { parseISODate } from "./utils/parse-iso-date";
@@ -9,9 +10,12 @@ import {
 } from "./utils/to-earnings-record";
 import api from "./api";
 
+const logger = new Logger();
 const EXCLUDE_EMPTY = process.env.EXCLUDE_EMPTY === "true";
 
 export const handler: Handler<APIGatewayEvent> = async (event) => {
+  logger.info("Starting handler", { event });
+
   const currencies = event.queryStringParameters?.cur?.split(",") || [];
   const targetCurrency = event.queryStringParameters?.targetCur || "USD";
 
@@ -24,72 +28,85 @@ export const handler: Handler<APIGatewayEvent> = async (event) => {
     };
   }
 
-  const earningsData: Array<Array<string>> = await StringStream.from(
-    api.getEarningsSchedule
-  )
-    .CSVParse()
-    .toArray();
+  try {
+    const earningsData: Array<Array<string>> = await StringStream.from(
+      api.getEarningsSchedule
+    )
+      .CSVParse()
+      .toArray();
 
-  const header = toEarningsRecordHeader(earningsData[0]);
+    logger.info("Earnings data", { length: earningsData.length });
 
-  const earnings = earningsData
-    .slice(1)
-    .map((row) => toEarningsRecord(row, header));
+    const header = toEarningsRecordHeader(earningsData[0]);
 
-  const currencyRates = await Promise.all(
-    currencies
-      .filter((currency) => currency !== targetCurrency)
-      .map(async (currency) => {
-        const rate = await api.getCurrencyRate(currency, targetCurrency);
+    const earnings = earningsData
+      .slice(1)
+      .map((row) => toEarningsRecord(row, header));
 
-        return { currency, rate };
-      })
-  );
+    const currencyRates = await Promise.all(
+      currencies
+        .filter((currency) => currency !== targetCurrency)
+        .map(async (currency) => {
+          const rate = await api.getCurrencyRate(currency, targetCurrency);
 
-  const currencyRatesMap = currencyRates.reduce(
-    (acc, { currency, rate }) => {
-      acc[currency] = rate;
+          return { currency, rate };
+        })
+    );
+
+    const currencyRatesMap = currencyRates.reduce(
+      (acc, { currency, rate }) => {
+        acc[currency] = rate;
+
+        return acc;
+      },
+      {} as {
+        [key: string]: number;
+      }
+    );
+
+    const nextMonth = getNextMonth();
+
+    const nextMonthEarnings = earnings.filter((earning) => {
+      const date = parseISODate(earning.reportDate);
+
+      if (!date) {
+        return false;
+      }
+
+      if (!currencies.includes(earning.currency)) {
+        return false;
+      }
+
+      if (EXCLUDE_EMPTY && !earning.estimate) {
+        return false;
+      }
+
+      return date.year === nextMonth.year && date.month === nextMonth.month;
+    });
+
+    const epsSummary = nextMonthEarnings.reduce((acc, row) => {
+      const currencyRate = currencyRatesMap[row.currency] || 1;
+
+      acc += parseFloat(row.estimate || "0") * currencyRate;
 
       return acc;
-    },
-    {} as {
-      [key: string]: number;
-    }
-  );
+    }, 0);
 
-  const nextMonth = getNextMonth();
+    return {
+      statusCode: 200,
+      body: JSON.stringify({
+        average: epsSummary / nextMonthEarnings.length,
+        targetCurrency,
+      }),
+    };
+  } catch (error) {
+    logger.error("Error", { error });
 
-  const nextMonthEarnings = earnings.filter((earning) => {
-    const date = parseISODate(earning.reportDate);
-
-    if (!date) {
-      return false;
-    }
-
-    if (!currencies.includes(earning.currency)) {
-      return false;
-    }
-
-    if (EXCLUDE_EMPTY && !earning.estimate) {
-      return false;
-    }
-
-    return date.year === nextMonth.year && date.month === nextMonth.month;
-  });
-
-  const epsSummary = nextMonthEarnings.reduce((acc, row) => {
-    const currencyRate = currencyRatesMap[row.currency] || 1;
-
-    acc += parseFloat(row.estimate || "0") * currencyRate;
-
-    return acc;
-  }, 0);
-
-  return {
-    statusCode: 200,
-    body: JSON.stringify({
-      average: epsSummary / nextMonthEarnings.length,
-      targetCurrency,
-    }),
-  };
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        error: error instanceof Error ? error.message : error,
+      }),
+    };
+  }
 };
