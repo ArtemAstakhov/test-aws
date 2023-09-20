@@ -12,14 +12,3 @@ export const handler = middy<APIGatewayEvent>()
   .use(validator({ eventSchema: transpileSchema(eventSchema) }))
   .use(httpErrorHandler())
   .handler(lambdaHandler);
-
-handler(
-  {
-    queryStringParameters: {
-      cur: "USD,EUR",
-      targetCur: "USD",
-    },
-  } as unknown as APIGatewayEvent,
-  {} as Context,
-  () => {}
-);
