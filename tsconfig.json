@@ -9,5 +9,6 @@
     "strict": true,
     "strictNullChecks": true
   },
-  "lib": ["es2015"]
+  "lib": ["es2015"],
+  "exclude": ["node_modules", "**/*.spec.ts"]
 }

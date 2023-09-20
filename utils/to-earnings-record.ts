@@ -1,9 +1,5 @@
+import { config } from "../config";
 import { EarningRecord, EarningRecordHeader } from "../models/earning-record";
-
-const CURRENCY_COLUMN_NAME = process.env.CURRENCY_COLUMN_NAME || "currency";
-const REPORT_DATE_COLUMN_NAME =
-  process.env.REPORT_DATE_COLUMN_NAME || "reportDate";
-const EPS_COLUMN_NAME = process.env.EPS_COLUMN_NAME || "estimate";
 
 export const toEarningsRecord = (
   row: Array<string>,
@@ -19,9 +15,9 @@ export const toEarningsRecord = (
 export const toEarningsRecordHeader = (
   header: Array<string>
 ): EarningRecordHeader => {
-  const currencyColumnIndex = header.indexOf(CURRENCY_COLUMN_NAME);
-  const reportDateColumnIndex = header.indexOf(REPORT_DATE_COLUMN_NAME);
-  const epsColumnIndex = header.indexOf(EPS_COLUMN_NAME);
+  const currencyColumnIndex = header.indexOf(config.currencyColumnName);
+  const reportDateColumnIndex = header.indexOf(config.reportDateColumnName);
+  const epsColumnIndex = header.indexOf(config.epsColumnName);
 
   return {
     currency: currencyColumnIndex,

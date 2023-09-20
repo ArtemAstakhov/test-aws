@@ -1,35 +1,31 @@
 import axios from "axios";
-import { Readable } from "stream";
-
-const ALPHAVANTAGE_API_KEY = process.env.ALPHAVANTAGE_API_KEY;
-const HORIZON = process.env.HORIZON || "3month";
+import { config } from "../config";
 
 export default {
-  getCurrencyRate: (
+  getCurrencyRate: async (
     currency: string,
     targetCurrency: string
   ): Promise<number> => {
-    return axios
-      .get(
-        `https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=${currency}&to_currency=${targetCurrency}&apikey=${ALPHAVANTAGE_API_KEY}`
-      )
-      .then((response) => {
-        return response.data["Realtime Currency Exchange Rate"][
-          "5. Exchange Rate"
-        ];
-      })
-      .then((rate) => {
-        return parseFloat(rate);
-      });
+    const response = await axios.get(
+      `https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=${currency}&to_currency=${targetCurrency}&apikey=${config.alphavanageApiKey}`
+    );
+
+    const rate =
+      response.data["Realtime Currency Exchange Rate"]["5. Exchange Rate"];
+
+    return parseFloat(rate);
   },
   getEarningsSchedule: async () => {
-    const { data } = await axios.get<Readable>(
-      `https://www.alphavantage.co/query?function=EARNINGS_CALENDAR&horizon=${HORIZON}&apikey=${ALPHAVANTAGE_API_KEY}`,
+    const { data } = await axios.get<string>(
+      `https://www.alphavantage.co/query?function=EARNINGS_CALENDAR&horizon=${config.horizon}&apikey=${config.alphavanageApiKey}`,
       {
-        responseType: "stream",
+        responseType: "text",
       }
     );
 
-    return data;
+    return data
+      .split("\n")
+      .filter((line) => line.length)
+      .map((line) => line.replace(/\r/g, "").split(","));
   },
 };
